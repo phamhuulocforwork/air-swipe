@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:air_swipe/data/swipe_platform.dart';
-import 'package:air_swipe/domain/gesture/image_upright.dart';
 import 'package:air_swipe/domain/gesture/pose_skeleton.dart';
 import 'package:air_swipe/domain/gesture/wrist_swipe_tracker.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -119,13 +118,6 @@ class PoseSession {
       if (rotation == null) {
         return;
       }
-      final uprightFrame = uprightPoint(
-        x: 0,
-        y: 0,
-        imageWidth: frame.width.toDouble(),
-        imageHeight: frame.height.toDouble(),
-        rotationDegrees: frame.rotation,
-      );
       final input = InputImage.fromBytes(
         bytes: frame.bytes,
         metadata: InputImageMetadata(
@@ -170,7 +162,7 @@ class PoseSession {
       final direction = tracker.addPoints(
         at: now,
         points: points,
-        imageHeight: points.isEmpty ? 0 : uprightFrame.height,
+        imageHeight: points.isEmpty ? 0 : skeleton.height,
       );
       if (direction != null) {
         lastGesture = direction;

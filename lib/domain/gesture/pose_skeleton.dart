@@ -1,6 +1,6 @@
 import 'package:air_swipe/domain/gesture/image_upright.dart';
 
-/// One raw pose landmark before it is rotated upright.
+/// One ML Kit pose landmark, already in upright image space.
 class SkeletonLandmark {
   const SkeletonLandmark({
     required this.index,
@@ -36,38 +36,35 @@ class PoseSkeleton {
   bool get hasVisibleJoint => likelihoods.any((value) => value >= 0.3);
 }
 
-/// Converts raw image landmarks into upright preview space.
+/// Copies upright ML Kit landmarks and reports the upright frame size.
+///
+/// [rotationDegrees] only swaps [imageWidth] and [imageHeight] at 90 and 270.
+/// Landmark x and y are already upright, so they are stored unchanged.
 PoseSkeleton poseSkeleton({
   required double imageWidth,
   required double imageHeight,
   required int rotationDegrees,
   required List<SkeletonLandmark> landmarks,
 }) {
+  final frame = uprightFrameSize(
+    imageWidth: imageWidth,
+    imageHeight: imageHeight,
+    rotationDegrees: rotationDegrees,
+  );
   final xs = List<double>.filled(PoseSkeleton.landmarkCount, 0);
   final ys = List<double>.filled(PoseSkeleton.landmarkCount, 0);
   final likelihoods = List<double>.filled(PoseSkeleton.landmarkCount, 0);
-  var width = imageWidth;
-  var height = imageHeight;
   for (final landmark in landmarks) {
     if (landmark.index < 0 || landmark.index >= PoseSkeleton.landmarkCount) {
       continue;
     }
-    final upright = uprightPoint(
-      x: landmark.x,
-      y: landmark.y,
-      imageWidth: imageWidth,
-      imageHeight: imageHeight,
-      rotationDegrees: rotationDegrees,
-    );
-    width = upright.width;
-    height = upright.height;
-    xs[landmark.index] = upright.x;
-    ys[landmark.index] = upright.y;
+    xs[landmark.index] = landmark.x;
+    ys[landmark.index] = landmark.y;
     likelihoods[landmark.index] = landmark.likelihood;
   }
   return PoseSkeleton(
-    width: width,
-    height: height,
+    width: frame.width,
+    height: frame.height,
     xs: xs,
     ys: ys,
     likelihoods: likelihoods,
