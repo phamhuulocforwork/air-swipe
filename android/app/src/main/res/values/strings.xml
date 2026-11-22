@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">AirSwipe dùng camera trước để nhận cử chỉ vuốt tay và giả lập vuốt màn hình. Không đọc nội dung trên màn hình.</string>
+</resources>
