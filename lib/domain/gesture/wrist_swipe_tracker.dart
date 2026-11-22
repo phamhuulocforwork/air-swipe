@@ -15,7 +15,10 @@ class _Sample {
   final double yNorm;
 }
 
-/// Turns a stream of wrist or index positions into swipe-up / swipe-down.
+/// Turns upright wrist positions into swipe-up / swipe-down.
+///
+/// A sample is stored only when [gesture] is `Open_Palm`. Any other label
+/// clears the window.
 ///
 /// [yIncreasesDownward] is true when upright [HandPoint.y] grows toward the
 /// bottom of the frame. Flip it if a device reports the opposite axis.
@@ -48,10 +51,15 @@ class WristSwipeTracker {
 
   SwipeDirection? addPoints({
     required DateTime at,
+    required String gesture,
     required List<HandPoint> points,
     required double imageHeight,
   }) {
     if (blocksInference(at)) {
+      return null;
+    }
+    if (gesture != 'Open_Palm') {
+      _samples.clear();
       return null;
     }
 

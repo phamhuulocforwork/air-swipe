@@ -7,7 +7,7 @@ import android.graphics.Paint
 import android.view.View
 import kotlin.math.max
 
-/// Draws the pose on top of the front-camera preview.
+/// Draws one MediaPipe hand on top of the front-camera preview.
 ///
 /// X is mirrored so the drawing matches PreviewView's selfie mirror.
 class SkeletonOverlay(
@@ -77,21 +77,15 @@ class SkeletonOverlay(
     companion object {
         private const val minLikelihood = 0.3f
 
-        private val trackedJoints = intArrayOf(15, 16, 19, 20)
+        private val trackedJoints = intArrayOf(0)
 
         private val bones =
             intArrayOf(
-                11, 12,
-                11, 13, 13, 15,
-                15, 17, 15, 19, 15, 21, 17, 19,
-                12, 14, 14, 16,
-                16, 18, 16, 20, 16, 22, 18, 20,
-                11, 23, 12, 24, 23, 24,
-                23, 25, 25, 27, 27, 29, 27, 31, 29, 31,
-                24, 26, 26, 28, 28, 30, 28, 32, 30, 32,
-                0, 1, 1, 2, 2, 3, 3, 7,
-                0, 4, 4, 5, 5, 6, 6, 8,
-                9, 10,
+                0, 1, 1, 2, 2, 3, 3, 4,
+                0, 5, 5, 6, 6, 7, 7, 8,
+                5, 9, 9, 10, 10, 11, 11, 12,
+                9, 13, 13, 14, 14, 15, 15, 16,
+                13, 17, 0, 17, 17, 18, 18, 19, 19, 20,
             )
     }
 }

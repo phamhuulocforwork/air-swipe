@@ -11,7 +11,6 @@ import android.view.accessibility.AccessibilityManager
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -39,17 +38,6 @@ class MainActivity : FlutterActivity() {
             AirSwipeChannels.PREVIEW,
             PreviewFactory(),
         )
-        EventChannel(messenger, AirSwipeChannels.FRAMES).setStreamHandler(
-            object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    AirSwipeChannels.frameSink = events
-                }
-
-                override fun onCancel(arguments: Any?) {
-                    AirSwipeChannels.frameSink = null
-                }
-            },
-        )
         MethodChannel(messenger, AirSwipeChannels.METHOD).setMethodCallHandler { call, result ->
             when (call.method) {
                 "takeCommand" -> {
@@ -73,10 +61,6 @@ class MainActivity : FlutterActivity() {
                 "stopListening" -> {
                     stopService(Intent(this, AirSwipeCameraService::class.java))
                     result.success(true)
-                }
-                "frameDone" -> {
-                    AirSwipeCamera.acceptFrames = true
-                    result.success(null)
                 }
                 "setPreviewActive" -> {
                     AirSwipeCamera.updatePreviewActive(call.arguments as? Boolean ?: true)
@@ -111,7 +95,6 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         AirSwipeChannels.dartReady = false
         AirSwipeChannels.messenger = null
-        AirSwipeChannels.frameSink = null
         stopService(Intent(this, AirSwipeCameraService::class.java))
         super.onDestroy()
     }

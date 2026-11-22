@@ -1,38 +1,63 @@
 import 'dart:async';
 
-import 'package:air_swipe/domain/gesture/pose_skeleton.dart';
 import 'package:flutter/services.dart';
 
-class CameraFrame {
-  const CameraFrame({
+class HandEvent {
+  const HandEvent({
     required this.width,
     required this.height,
-    required this.rotation,
-    required this.bytes,
+    required this.gesture,
+    required this.score,
+    required this.xs,
+    required this.ys,
+    required this.likelihoods,
   });
 
-  final int width;
-  final int height;
-  final int rotation;
-  final Uint8List bytes;
+  final double width;
+  final double height;
+  final String gesture;
+  final double score;
+  final List<double> xs;
+  final List<double> ys;
+  final List<double> likelihoods;
+
+  bool get hasVisibleJoint => likelihoods.any((value) => value >= 0.3);
+
+  factory HandEvent.fromArguments(Object? arguments) {
+    final map = Map<Object?, Object?>.from(arguments as Map);
+    return HandEvent(
+      width: (map['width'] as num?)?.toDouble() ?? 0,
+      height: (map['height'] as num?)?.toDouble() ?? 0,
+      gesture: map['gesture'] as String? ?? 'None',
+      score: (map['score'] as num?)?.toDouble() ?? 0,
+      xs: _doubles(map['xs']),
+      ys: _doubles(map['ys']),
+      likelihoods: _doubles(map['likelihoods']),
+    );
+  }
+}
+
+List<double> _doubles(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return [for (final item in value) (item as num).toDouble()];
 }
 
 class SwipePlatform {
-  SwipePlatform({MethodChannel? channel, EventChannel? frames})
-    : _channel = channel ?? const MethodChannel('com.airswipe/gestures'),
-      _frames = frames ?? const EventChannel('com.airswipe/frames');
+  SwipePlatform({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('com.airswipe/gestures');
 
   static const channelName = 'com.airswipe/gestures';
-  static const framesName = 'com.airswipe/frames';
 
   final MethodChannel _channel;
-  final EventChannel _frames;
   Completer<void>? _ready;
 
   void listenCommands({
     required Future<void> Function() onStart,
     required Future<void> Function() onStop,
     required void Function(String message) onCameraError,
+    required Future<void> Function(Object? arguments) onHand,
   }) {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -52,6 +77,8 @@ class SwipePlatform {
             ready.completeError(StateError(message));
           }
           onCameraError(message);
+        case 'hand':
+          await onHand(call.arguments);
       }
     });
   }
@@ -78,10 +105,6 @@ class SwipePlatform {
 
   Future<void> stopListening() {
     return _channel.invokeMethod<void>('stopListening');
-  }
-
-  Future<void> frameDone() {
-    return _channel.invokeMethod<void>('frameDone');
   }
 
   Future<bool> swipeUp() async {
@@ -116,29 +139,17 @@ class SwipePlatform {
     return _channel.invokeMethod<void>('setPreviewActive', active);
   }
 
-  void showSkeleton(PoseSkeleton? skeleton) {
-    if (skeleton == null || !skeleton.hasVisibleJoint) {
+  void showSkeleton(HandEvent? hand) {
+    if (hand == null || !hand.hasVisibleJoint) {
       _channel.invokeMethod<void>('showSkeleton');
       return;
     }
     _channel.invokeMethod<void>('showSkeleton', {
-      'width': skeleton.width,
-      'height': skeleton.height,
-      'xs': skeleton.xs,
-      'ys': skeleton.ys,
-      'likelihoods': skeleton.likelihoods,
-    });
-  }
-
-  Stream<CameraFrame> frames() {
-    return _frames.receiveBroadcastStream().map((event) {
-      final map = Map<Object?, Object?>.from(event as Map);
-      return CameraFrame(
-        width: (map['width'] as num).toInt(),
-        height: (map['height'] as num).toInt(),
-        rotation: (map['rotation'] as num).toInt(),
-        bytes: map['bytes'] as Uint8List,
-      );
+      'width': hand.width,
+      'height': hand.height,
+      'xs': hand.xs,
+      'ys': hand.ys,
+      'likelihoods': hand.likelihoods,
     });
   }
 }

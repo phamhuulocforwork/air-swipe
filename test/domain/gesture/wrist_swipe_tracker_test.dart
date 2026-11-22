@@ -15,12 +15,14 @@ void main() {
       final result = tracker()
         ..addPoints(
           at: t0,
+          gesture: 'Open_Palm',
           points: [_point(80)],
           imageHeight: 100,
         );
       expect(
         result.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(50)],
           imageHeight: 100,
         ),
@@ -30,10 +32,16 @@ void main() {
 
     test('emits down when the hand moves down past the threshold', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(20)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(20)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(50)],
           imageHeight: 100,
         ),
@@ -43,10 +51,16 @@ void main() {
 
     test('ignores travel below the sensitivity', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(50)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(50)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(60)],
           imageHeight: 100,
         ),
@@ -56,10 +70,16 @@ void main() {
 
     test('a low-likelihood sample clears the buffer', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(80)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 40)),
+          gesture: 'Open_Palm',
           points: [_point(80, 0.1)],
           imageHeight: 100,
         ),
@@ -68,6 +88,7 @@ void main() {
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(20)],
           imageHeight: 100,
         ),
@@ -77,10 +98,16 @@ void main() {
 
     test('cooldown swallows a second trigger', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(80)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(50)],
           imageHeight: 100,
         ),
@@ -90,6 +117,7 @@ void main() {
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 900)),
+          gesture: 'Open_Palm',
           points: [_point(20)],
           imageHeight: 100,
         ),
@@ -98,6 +126,7 @@ void main() {
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 1100)),
+          gesture: 'Open_Palm',
           points: [_point(80)],
           imageHeight: 100,
         ),
@@ -106,12 +135,14 @@ void main() {
 
       swipe.addPoints(
         at: t0.add(const Duration(milliseconds: 1700)),
+        gesture: 'Open_Palm',
         points: [_point(20)],
         imageHeight: 100,
       );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 1900)),
+          gesture: 'Open_Palm',
           points: [_point(50)],
           imageHeight: 100,
         ),
@@ -121,10 +152,16 @@ void main() {
 
     test('does not fire when the window is shorter than 120ms', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(80)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 100)),
+          gesture: 'Open_Palm',
           points: [_point(20)],
           imageHeight: 100,
         ),
@@ -134,10 +171,16 @@ void main() {
 
     test('a new sensitivity applies on the next sample', () {
       final swipe = tracker();
-      swipe.addPoints(at: t0, points: [_point(50)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(50)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(60)],
           imageHeight: 100,
         ),
@@ -148,6 +191,7 @@ void main() {
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 250)),
+          gesture: 'Open_Palm',
           points: [_point(61)],
           imageHeight: 100,
         ),
@@ -159,12 +203,14 @@ void main() {
       final swipe = tracker();
       swipe.addPoints(
         at: t0,
+        gesture: 'Open_Palm',
         points: [_point(10, 0.55), _point(80, 0.95)],
         imageHeight: 100,
       );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(90, 0.55), _point(50, 0.95)],
           imageHeight: 100,
         ),
@@ -174,10 +220,80 @@ void main() {
 
     test('inverted Y axis flips the direction', () {
       final swipe = WristSwipeTracker(yIncreasesDownward: false);
-      swipe.addPoints(at: t0, points: [_point(80)], imageHeight: 100);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
       expect(
         swipe.addPoints(
           at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
+          points: [_point(50)],
+          imageHeight: 100,
+        ),
+        SwipeDirection.down,
+      );
+    });
+
+    test('a closed fist clears earlier open-palm samples', () {
+      final swipe = tracker();
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
+      expect(
+        swipe.addPoints(
+          at: t0.add(const Duration(milliseconds: 40)),
+          gesture: 'Closed_Fist',
+          points: [_point(20)],
+          imageHeight: 100,
+        ),
+        isNull,
+      );
+      expect(
+        swipe.addPoints(
+          at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
+          points: [_point(20)],
+          imageHeight: 100,
+        ),
+        isNull,
+      );
+    });
+
+    test('two open-palm samples still swipe up and down', () {
+      final up = tracker();
+      up.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
+      expect(
+        up.addPoints(
+          at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
+          points: [_point(50)],
+          imageHeight: 100,
+        ),
+        SwipeDirection.up,
+      );
+
+      final down = tracker();
+      down.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(20)],
+        imageHeight: 100,
+      );
+      expect(
+        down.addPoints(
+          at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
           points: [_point(50)],
           imageHeight: 100,
         ),

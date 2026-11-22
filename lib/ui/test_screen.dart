@@ -1,7 +1,7 @@
 import 'package:air_swipe/data/settings_store.dart';
 import 'package:air_swipe/data/swipe_platform.dart';
 import 'package:air_swipe/domain/gesture/wrist_swipe_tracker.dart';
-import 'package:air_swipe/session/pose_session.dart';
+import 'package:air_swipe/session/hand_session.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -15,7 +15,7 @@ class TestScreen extends StatefulWidget {
 class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   final SwipePlatform _platform = SwipePlatform();
   final SettingsStore _store = SettingsStore();
-  late final PoseSession _session;
+  late final HandSession _session;
 
   var _accessibilityOn = false;
   var _canAddTile = false;
@@ -27,7 +27,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _session = PoseSession(platform: _platform);
+    _session = HandSession(platform: _platform);
     _session.onUpdate = () {
       if (mounted) {
         setState(() {});
@@ -45,6 +45,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
           setState(() {});
         }
       },
+      onHand: _session.onHand,
     );
     _boot();
   }

@@ -36,6 +36,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    androidResources {
+        noCompress += "task"
+    }
+
+    packaging {
+        jniLibs {
+            pickFirsts += "**/libc++_shared.so"
+        }
+    }
 }
 
 kotlin {
@@ -54,4 +64,5 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.6.2")
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("androidx.core:core-ktx:1.16.0")
+    implementation("com.google.mediapipe:tasks-vision:0.10.15")
 }
