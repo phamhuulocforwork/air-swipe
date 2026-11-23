@@ -21,11 +21,11 @@ class AirSwipeTileService : TileService() {
 
     override fun onClick() {
         if (AirSwipeRuntime.listening) {
-            if (AirSwipeChannels.dartReady && AirSwipeChannels.messenger != null) {
-                AirSwipeChannels.notify("stop")
-            } else {
-                stopService(Intent(this, AirSwipeCameraService::class.java))
-            }
+            val tile = qsTile
+            tile?.state = Tile.STATE_INACTIVE
+            tile?.updateTile()
+            stopService(Intent(this, AirSwipeCameraService::class.java))
+            AirSwipeChannels.notify("stop")
         } else {
             openForCommand("start")
         }

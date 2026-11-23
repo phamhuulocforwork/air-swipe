@@ -49,6 +49,9 @@ object AirSwipeCamera {
     private var executor: ExecutorService? = null
     private var lastSentElapsed = 0L
     private var lastTimestamp = 0L
+    private var fpsWindowStart = 0L
+    private var fpsWindowCount = 0
+    private var fps: Int? = null
     private var appContext: Context? = null
     private var recognizer: GestureRecognizer? = null
     private var gestureBusy = false
@@ -79,6 +82,7 @@ object AirSwipeCamera {
             return
         }
         running = true
+        resetMetrics()
         AirSwipeRuntime.listening = true
         AirSwipeRuntime.refreshTile(context)
         val owner = ResumedLifecycleOwner().also { it.resume() }
@@ -142,6 +146,7 @@ object AirSwipeCamera {
     }
 
     fun stop() {
+        resetMetrics()
         val closing: GestureRecognizer?
         val meta: FrameMeta?
         synchronized(gestureGate) {
@@ -254,7 +259,16 @@ object AirSwipeCamera {
             val uprightWidth = frame.width.toFloat()
             val uprightHeight = frame.height.toFloat()
             val mpImage = BitmapImageBuilder(frame).build()
-            val meta = FrameMeta(rotation, uprightWidth, uprightHeight, frame, mpImage)
+            val submittedElapsed = SystemClock.elapsedRealtime()
+            val meta =
+                FrameMeta(
+                    rotation,
+                    uprightWidth,
+                    uprightHeight,
+                    frame,
+                    mpImage,
+                    submittedElapsed,
+                )
             bitmap = null
             lastSentElapsed = now
             synchronized(gestureGate) {
@@ -266,11 +280,12 @@ object AirSwipeCamera {
             } catch (error: Exception) {
                 val taken = takePending()
                 Log.e("AirSwipeGesture", "recognizeAsync failed", error)
+                val latency = taken?.let { SystemClock.elapsedRealtime() - it.submittedElapsed }
                 taken?.release()
                 if (running) {
                     AirSwipeChannels.notify(
                         "hand",
-                        nonePayload(uprightWidth, uprightHeight),
+                        nonePayload(uprightWidth, uprightHeight, latency),
                     )
                 }
             }
@@ -296,7 +311,11 @@ object AirSwipeCamera {
                 )
                 AirSwipeChannels.notify(
                     "hand",
-                    nonePayload(meta.uprightWidth, meta.uprightHeight),
+                    nonePayload(
+                        meta.uprightWidth,
+                        meta.uprightHeight,
+                        SystemClock.elapsedRealtime() - meta.submittedElapsed,
+                    ),
                 )
                 return
             }
@@ -321,9 +340,10 @@ object AirSwipeCamera {
         Log.e("AirSwipeGesture", error.message ?: "recognize failed", error)
         val width = meta?.uprightWidth ?: 0f
         val height = meta?.uprightHeight ?: 0f
+        val latency = meta?.let { SystemClock.elapsedRealtime() - it.submittedElapsed }
         meta?.release()
         if (running) {
-            AirSwipeChannels.notify("hand", nonePayload(width, height))
+            AirSwipeChannels.notify("hand", nonePayload(width, height, latency))
         }
     }
 
@@ -366,27 +386,67 @@ object AirSwipeCamera {
             ys.add((landmark.y() * meta.uprightHeight).toDouble())
             likelihoods.add(landmark.presence().orElse(1f).toDouble())
         }
-        return mapOf(
-            "width" to meta.uprightWidth.toDouble(),
-            "height" to meta.uprightHeight.toDouble(),
-            "gesture" to name,
-            "score" to score.toDouble(),
-            "xs" to xs,
-            "ys" to ys,
-            "likelihoods" to likelihoods,
-        )
+        val payload =
+            mutableMapOf<String, Any>(
+                "width" to meta.uprightWidth.toDouble(),
+                "height" to meta.uprightHeight.toDouble(),
+                "gesture" to name,
+                "score" to score.toDouble(),
+                "xs" to xs,
+                "ys" to ys,
+                "likelihoods" to likelihoods,
+            )
+        attachMetrics(payload, SystemClock.elapsedRealtime() - meta.submittedElapsed)
+        return payload
     }
 
-    private fun nonePayload(width: Float, height: Float): Map<String, Any> {
-        return mapOf(
-            "width" to width.toDouble(),
-            "height" to height.toDouble(),
-            "gesture" to "None",
-            "score" to 0.0,
-            "xs" to emptyList<Double>(),
-            "ys" to emptyList<Double>(),
-            "likelihoods" to emptyList<Double>(),
-        )
+    private fun nonePayload(
+        width: Float,
+        height: Float,
+        latencyMs: Long? = null,
+    ): Map<String, Any> {
+        val payload =
+            mutableMapOf<String, Any>(
+                "width" to width.toDouble(),
+                "height" to height.toDouble(),
+                "gesture" to "None",
+                "score" to 0.0,
+                "xs" to emptyList<Double>(),
+                "ys" to emptyList<Double>(),
+                "likelihoods" to emptyList<Double>(),
+            )
+        attachMetrics(payload, latencyMs)
+        return payload
+    }
+
+    private fun attachMetrics(payload: MutableMap<String, Any>, latencyMs: Long?) {
+        val currentFps = noteGesture(SystemClock.elapsedRealtime())
+        if (currentFps != null) {
+            payload["fps"] = currentFps
+        }
+        if (latencyMs != null) {
+            payload["latencyMs"] = latencyMs
+        }
+    }
+
+    private fun noteGesture(now: Long): Int? {
+        if (fpsWindowStart == 0L) {
+            fpsWindowStart = now
+        }
+        fpsWindowCount += 1
+        val elapsed = now - fpsWindowStart
+        if (elapsed >= 1000L) {
+            fps = ((fpsWindowCount * 1000L) / elapsed).toInt()
+            fpsWindowStart = now
+            fpsWindowCount = 0
+        }
+        return fps
+    }
+
+    private fun resetMetrics() {
+        fpsWindowStart = 0L
+        fpsWindowCount = 0
+        fps = null
     }
 
     private fun takePending(): FrameMeta? {
@@ -430,6 +490,7 @@ private class FrameMeta(
     val uprightHeight: Float,
     private val bitmap: Bitmap,
     private val mpImage: MPImage,
+    val submittedElapsed: Long,
 ) {
     fun release() {
         try {

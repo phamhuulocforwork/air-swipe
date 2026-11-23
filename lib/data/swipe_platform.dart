@@ -11,6 +11,8 @@ class HandEvent {
     required this.xs,
     required this.ys,
     required this.likelihoods,
+    this.fps,
+    this.latencyMs,
   });
 
   final double width;
@@ -20,6 +22,8 @@ class HandEvent {
   final List<double> xs;
   final List<double> ys;
   final List<double> likelihoods;
+  final int? fps;
+  final int? latencyMs;
 
   bool get hasVisibleJoint => likelihoods.any((value) => value >= 0.3);
 
@@ -33,6 +37,8 @@ class HandEvent {
       xs: _doubles(map['xs']),
       ys: _doubles(map['ys']),
       likelihoods: _doubles(map['likelihoods']),
+      fps: (map['fps'] as num?)?.toInt(),
+      latencyMs: (map['latencyMs'] as num?)?.toInt(),
     );
   }
 }
@@ -62,9 +68,9 @@ class SwipePlatform {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'start':
-          await onStart();
+          unawaited(Future<void>(onStart));
         case 'stop':
-          await onStop();
+          unawaited(Future<void>(onStop));
         case 'cameraReady':
           final ready = _ready;
           if (ready != null && !ready.isCompleted) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:air_swipe/data/settings_store.dart';
 import 'package:air_swipe/data/swipe_platform.dart';
 import 'package:air_swipe/domain/gesture/wrist_swipe_tracker.dart';
@@ -23,6 +25,13 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   var _cooldownMs = 1500;
   var _upOnly = false;
   var _toggleBusy = false;
+  var _debug = false;
+  var _titleTaps = 0;
+  Timer? _titleTapReset;
+  int? _fps;
+  int? _latencyMs;
+  var _handVisible = false;
+  var _hasSample = false;
 
   @override
   void initState() {
@@ -46,7 +55,18 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
           setState(() {});
         }
       },
-      onHand: _session.onHand,
+      onHand: (arguments) async {
+        final hand = HandEvent.fromArguments(arguments);
+        if (mounted) {
+          setState(() {
+            _fps = hand.fps;
+            _latencyMs = hand.latencyMs;
+            _handVisible = hand.hasVisibleJoint;
+            _hasSample = true;
+          });
+        }
+        await _session.onHand(arguments);
+      },
     );
     _boot();
   }
@@ -138,8 +158,22 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _onTitleTap() {
+    _titleTapReset?.cancel();
+    _titleTaps += 1;
+    if (_titleTaps >= 5) {
+      _titleTaps = 0;
+      setState(() => _debug = !_debug);
+      return;
+    }
+    _titleTapReset = Timer(const Duration(seconds: 2), () {
+      _titleTaps = 0;
+    });
+  }
+
   @override
   void dispose() {
+    _titleTapReset?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _session.stop();
     super.dispose();
@@ -147,52 +181,299 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final gesture = switch (_session.lastGesture) {
-      SwipeDirection.up => 'lên',
-      SwipeDirection.down => 'xuống',
-      null => '—',
-    };
+    const gap = 20.0;
     return Scaffold(
-      appBar: AppBar(title: const Text('AirSwipe')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Bật AirSwipe'),
-            value: _session.listening || _session.starting,
-            onChanged: _toggleBusy
-                ? null
-                : (value) => _setListening(value, collapse: false),
-          ),
-          Text('Accessibility: ${_accessibilityOn ? 'Bật' : 'Tắt'}'),
-          Text('Camera: ${_session.listening ? 'Bật' : 'Tắt'}'),
-          Text('Cử chỉ gần nhất: $gesture'),
-          Text('Lỗi: ${_session.error ?? '—'}'),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 160,
-            width: double.infinity,
-            child: _session.listening
-                ? const AndroidView(viewType: 'com.airswipe/preview')
-                : const ColoredBox(
-                    color: Color(0xFFE0E0E0),
-                    child: Center(child: Text('Camera tắt')),
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _header(),
+                      const SizedBox(height: gap),
+                      _powerButton(),
+                      const SizedBox(height: gap),
+                      _statusCard(),
+                      if (_session.error != null) ...[
+                        const SizedBox(height: gap),
+                        _errorBanner(),
+                      ],
+                      if (_debug) ...[
+                        const SizedBox(height: gap),
+                        _previewCard(),
+                        const SizedBox(height: 10),
+                        _debugHint(),
+                      ],
+                      const SizedBox(height: gap),
+                      _settingsCard(),
+                    ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _actions(context),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text('Độ nhạy ${_sensitivity.toStringAsFixed(2)}'),
+        ),
+      ),
+    );
+  }
+
+  Widget _header() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: _onTitleTap,
+          behavior: HitTestBehavior.opaque,
+          child: const Text(
+            'AirSwipe',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Vuốt reels bằng cử chỉ tay — không cần chạm màn hình',
+          style: TextStyle(fontSize: 14, height: 1.4, color: _body),
+        ),
+      ],
+    );
+  }
+
+  Widget _powerButton() {
+    final on = _session.listening || _session.starting;
+    const size = 164.0;
+    return Column(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: on
+                ? [
+                    BoxShadow(
+                      color: const Color(0x52FFD74B),
+                      blurRadius: 28,
+                      offset: Offset(0, 14),
+                    ),
+                  ]
+                : null,
+          ),
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: on ? null : Border.all(color: _accent, width: 1.5),
+            ),
+            child: ClipOval(
+              child: Material(
+                color: on ? _accent : Colors.white,
+                child: InkWell(
+                  onTap: _toggleBusy
+                      ? null
+                      : () => _setListening(!on, collapse: false),
+                  child: Ink(
+                    width: size,
+                    height: size,
+                    decoration: on
+                        ? const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [_accentSoft, _accent],
+                            ),
+                          )
+                        : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.arrow_upward, size: 32, color: _ink),
+                        const SizedBox(height: 10),
+                        Text(
+                          on ? 'Đang bật' : 'Bật',
+                          style: const TextStyle(
+                            color: _ink,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          on ? 'Chạm để tắt' : 'Chạm để bật',
+          style: const TextStyle(fontSize: 13, color: _muted),
+        ),
+      ],
+    );
+  }
+
+  Widget _errorBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF1F0),
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+      ),
+      child: Text(
+        _session.error!,
+        style: const TextStyle(fontSize: 13, height: 1.4, color: _danger),
+      ),
+    );
+  }
+
+  Widget _statusCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: _cardDecoration,
+      child: Column(
+        children: [
+          _statusRow(
+            'Quyền trợ năng',
+            _dotStatus(
+              _accessibilityOn ? 'Đã cấp' : 'Chưa cấp',
+              active: _accessibilityOn,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _statusRow(
+            'Camera',
+            _dotStatus(
+              _session.listening ? 'Đang hoạt động' : 'Tắt',
+              active: _session.listening,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _statusRow(
+            'Thao tác gần nhất',
+            Text(
+              _gestureLabel,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _ink,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusRow(String label, Widget trailing) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: _body)),
+        const Spacer(),
+        trailing,
+      ],
+    );
+  }
+
+  Widget _dotStatus(String text, {required bool active}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: active ? _ok : _line,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _ink,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _settingsCard() {
+    final seconds = (_cooldownMs / 1000).toStringAsFixed(1);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: _cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Tuỳ chỉnh',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: _ink,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Độ nhạy cử chỉ',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: _ink,
+            ),
+          ),
           Slider(
-            min: 0.08,
-            max: 0.40,
-            value: _sensitivity,
+            min: _sensitivityMin,
+            max: _sensitivityMax,
+            value: _sliderSensitivity(_sensitivity),
             onChanged: (value) {
-              setState(() => _sensitivity = _snapSensitivity(value));
+              setState(() {
+                _sensitivity = _snapSensitivity(_sliderSensitivity(value));
+              });
               _applyTrackerSettings();
             },
             onChangeEnd: (_) => _saveSettings(),
           ),
-          Text('Cooldown $_cooldownMs ms'),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Ít nhạy', style: TextStyle(fontSize: 12, color: _muted)),
+              Text('Rất nhạy', style: TextStyle(fontSize: 12, color: _muted)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Khoảng nghỉ giữa 2 lần vuốt',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _ink,
+                  ),
+                ),
+              ),
+              Text(
+                '$seconds giây',
+                style: const TextStyle(fontSize: 13, color: _muted),
+              ),
+            ],
+          ),
           Slider(
             min: 800,
             max: 3000,
@@ -203,39 +484,244 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
             },
             onChangeEnd: (_) => _saveSettings(),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Chỉ vuốt lên'),
-            value: _upOnly,
-            onChanged: (value) {
-              setState(() => _upOnly = value);
-              _applyTrackerSettings();
-              _saveSettings();
-            },
-          ),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () async {
-              await _platform.openAccessibilitySettings();
-            },
-            child: const Text('Mở cài đặt hỗ trợ tiếp cận'),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chỉ vuốt lên',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: _ink,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Tắt để vuốt được cả hai chiều',
+                      style: TextStyle(fontSize: 12, color: _muted),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _upOnly,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (value) {
+                  setState(() => _upOnly = value);
+                  _applyTrackerSettings();
+                  _saveSettings();
+                },
+              ),
+            ],
           ),
-          if (_canAddTile)
-            OutlinedButton(
-              onPressed: () async {
-                final added = await _platform.requestAddTile();
-                if (!added && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chưa gắn được ô Quick Settings')),
-                  );
-                }
-              },
-              child: const Text('Gắn ô Quick Settings'),
-            ),
         ],
       ),
     );
   }
+
+  Widget _previewCard() {
+    final listening = _session.listening;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Xem trước camera',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _ink,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: 220,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (listening)
+                    const AndroidView(viewType: 'com.airswipe/preview')
+                  else
+                    const ColoredBox(color: _ink),
+                  const _FrameCorner(alignment: Alignment.topLeft),
+                  const _FrameCorner(alignment: Alignment.topRight),
+                  const _FrameCorner(alignment: Alignment.bottomLeft),
+                  const _FrameCorner(alignment: Alignment.bottomRight),
+                  Center(
+                    child: Text(
+                      listening ? 'Đang nhận diện tay…' : 'Camera tắt',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_fpsLabel, style: _mono),
+              Text(_latencyLabel, style: _mono),
+              Text(_handLabel, style: _mono),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actions(BuildContext context) {
+    final accessibility = _outlineButton(
+      'Cấp quyền trợ năng',
+      () => _platform.openAccessibilitySettings(),
+    );
+    if (!_canAddTile) {
+      return accessibility;
+    }
+    return Row(
+      children: [
+        Expanded(child: accessibility),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _outlineButton('Thêm lối tắt nhanh', () async {
+            final added = await _platform.requestAddTile();
+            if (!added && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Chưa gắn được ô Quick Settings')),
+              );
+            }
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _outlineButton(String label, VoidCallback onPressed) {
+    return SizedBox(
+      height: 48,
+      width: double.infinity,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _ink,
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: _accent, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        onPressed: onPressed,
+        child: Text(label, textAlign: TextAlign.center, maxLines: 2),
+      ),
+    );
+  }
+
+  Widget _debugHint() {
+    return const Text(
+      'Chạm 5 lần liên tiếp vào chữ "AirSwipe" để tắt chế độ Debug.',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 12, height: 1.5, color: _muted),
+    );
+  }
+
+  String get _gestureLabel {
+    return switch (_session.lastGesture) {
+      SwipeDirection.up => 'Vuốt lên ↑',
+      SwipeDirection.down => 'Vuốt xuống ↓',
+      null => '—',
+    };
+  }
+
+  String get _fpsLabel {
+    if (!_session.listening || _fps == null) {
+      return 'FPS: —';
+    }
+    return 'FPS: $_fps';
+  }
+
+  String get _latencyLabel {
+    if (!_session.listening || _latencyMs == null) {
+      return 'Độ trễ: —';
+    }
+    return 'Độ trễ: $_latencyMs ms';
+  }
+
+  String get _handLabel {
+    if (!_session.listening || !_hasSample) {
+      return 'Tay: —';
+    }
+    return _handVisible ? 'Tay: phát hiện' : 'Tay: không thấy';
+  }
+}
+
+class _FrameCorner extends StatelessWidget {
+  const _FrameCorner({required this.alignment});
+
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = alignment.y < 0;
+    final left = alignment.x < 0;
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: 18,
+        height: 18,
+        margin: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border(
+            top: top ? _side : BorderSide.none,
+            bottom: top ? BorderSide.none : _side,
+            left: left ? _side : BorderSide.none,
+            right: left ? BorderSide.none : _side,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _cardDecoration = BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.all(Radius.circular(20)),
+  boxShadow: [
+    BoxShadow(color: Color(0x0F1C1B1F), blurRadius: 3, offset: Offset(0, 1)),
+  ],
+);
+
+const _mono = TextStyle(fontSize: 12, color: _muted, fontFamily: 'monospace');
+
+const _side = BorderSide(color: Color(0x8CFFFFFF), width: 2);
+
+const _bg = Color(0xFFFFFBF0);
+const _ink = Color(0xFF1C1B1F);
+const _body = Color(0xFF49454F);
+const _muted = Color(0xFF635E6B);
+const _accent = Color(0xFFFFD74B);
+const _accentSoft = Color(0xFFFFE7A3);
+const _line = Color(0xFFCAC4D0);
+const _ok = Color(0xFF1E8E3E);
+const _danger = Color(0xFFB3261E);
+
+const _sensitivityMin = 0.08;
+const _sensitivityMax = 0.40;
+
+double _sliderSensitivity(double threshold) {
+  return _sensitivityMax + _sensitivityMin - threshold;
 }
 
 double _snapSensitivity(double value) {
