@@ -1,21 +1,28 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SwipeSettings {
-  const SwipeSettings({this.sensitivity = 0.18, this.cooldownMs = 1500});
+  const SwipeSettings({
+    this.sensitivity = 0.18,
+    this.cooldownMs = 1500,
+    this.upOnly = false,
+  });
 
   final double sensitivity;
   final int cooldownMs;
+  final bool upOnly;
 }
 
 class SettingsStore {
   static const sensitivityKey = 'sensitivity';
   static const cooldownKey = 'cooldownMs';
+  static const upOnlyKey = 'upOnly';
 
   Future<SwipeSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     return SwipeSettings(
       sensitivity: _sensitivity(prefs.getDouble(sensitivityKey) ?? 0.18),
       cooldownMs: _cooldown(prefs.getInt(cooldownKey) ?? 1500),
+      upOnly: prefs.getBool(upOnlyKey) ?? false,
     );
   }
 
@@ -23,6 +30,7 @@ class SettingsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(sensitivityKey, _sensitivity(settings.sensitivity));
     await prefs.setInt(cooldownKey, _cooldown(settings.cooldownMs));
+    await prefs.setBool(upOnlyKey, settings.upOnly);
   }
 
   double _sensitivity(double value) {

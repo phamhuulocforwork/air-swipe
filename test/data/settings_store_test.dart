@@ -13,14 +13,18 @@ void main() {
     final settings = await SettingsStore().load();
     expect(settings.sensitivity, 0.18);
     expect(settings.cooldownMs, 1500);
+    expect(settings.upOnly, isFalse);
   });
 
   test('saves and reloads slider values', () async {
     final store = SettingsStore();
-    await store.save(const SwipeSettings(sensitivity: 0.25, cooldownMs: 2000));
+    await store.save(
+      const SwipeSettings(sensitivity: 0.25, cooldownMs: 2000, upOnly: true),
+    );
     final settings = await store.load();
     expect(settings.sensitivity, 0.25);
     expect(settings.cooldownMs, 2000);
+    expect(settings.upOnly, isTrue);
   });
 
   test('clamps values into the slider range', () async {

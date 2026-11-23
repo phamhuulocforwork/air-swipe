@@ -300,5 +300,39 @@ void main() {
         SwipeDirection.down,
       );
     });
+
+    test('up only drops a downward swipe and still accepts the next up', () {
+      final swipe = WristSwipeTracker(upOnly: true);
+      swipe.addPoints(
+        at: t0,
+        gesture: 'Open_Palm',
+        points: [_point(20)],
+        imageHeight: 100,
+      );
+      expect(
+        swipe.addPoints(
+          at: t0.add(const Duration(milliseconds: 200)),
+          gesture: 'Open_Palm',
+          points: [_point(50)],
+          imageHeight: 100,
+        ),
+        isNull,
+      );
+      swipe.addPoints(
+        at: t0.add(const Duration(milliseconds: 400)),
+        gesture: 'Open_Palm',
+        points: [_point(80)],
+        imageHeight: 100,
+      );
+      expect(
+        swipe.addPoints(
+          at: t0.add(const Duration(milliseconds: 600)),
+          gesture: 'Open_Palm',
+          points: [_point(50)],
+          imageHeight: 100,
+        ),
+        SwipeDirection.up,
+      );
+    });
   });
 }

@@ -21,6 +21,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   var _canAddTile = false;
   var _sensitivity = 0.18;
   var _cooldownMs = 1500;
+  var _upOnly = false;
   var _toggleBusy = false;
 
   @override
@@ -60,6 +61,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
     setState(() {
       _sensitivity = settings.sensitivity;
       _cooldownMs = settings.cooldownMs;
+      _upOnly = settings.upOnly;
       _canAddTile = canAddTile;
     });
     _applyTrackerSettings();
@@ -74,6 +76,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   void _applyTrackerSettings() {
     _session.tracker.sensitivity = _sensitivity;
     _session.tracker.cooldown = Duration(milliseconds: _cooldownMs);
+    _session.tracker.upOnly = _upOnly;
   }
 
   Future<void> _refreshAccessibility() async {
@@ -85,7 +88,11 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
 
   Future<void> _saveSettings() {
     return _store.save(
-      SwipeSettings(sensitivity: _sensitivity, cooldownMs: _cooldownMs),
+      SwipeSettings(
+        sensitivity: _sensitivity,
+        cooldownMs: _cooldownMs,
+        upOnly: _upOnly,
+      ),
     );
   }
 
@@ -195,6 +202,16 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
               _applyTrackerSettings();
             },
             onChangeEnd: (_) => _saveSettings(),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Chỉ vuốt lên'),
+            value: _upOnly,
+            onChanged: (value) {
+              setState(() => _upOnly = value);
+              _applyTrackerSettings();
+              _saveSettings();
+            },
           ),
           const SizedBox(height: 8),
           OutlinedButton(

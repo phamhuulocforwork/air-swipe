@@ -30,10 +30,12 @@ class WristSwipeTracker {
     this.minLikelihood = 0.5,
     this.minElapsed = const Duration(milliseconds: 120),
     this.yIncreasesDownward = true,
+    this.upOnly = false,
   });
 
   double sensitivity;
   Duration cooldown;
+  bool upOnly;
   final Duration window;
   final double minLikelihood;
   final Duration minElapsed;
@@ -94,6 +96,10 @@ class WristSwipeTracker {
     }
 
     final direction = dy < 0 ? SwipeDirection.up : SwipeDirection.down;
+    if (upOnly && direction == SwipeDirection.down) {
+      _samples.clear();
+      return null;
+    }
     _samples.clear();
     _cooldownUntil = at.add(cooldown);
     return direction;
