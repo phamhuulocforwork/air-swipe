@@ -14,6 +14,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private lateinit var shizukuExecutor: ShizukuSwipeExecutor
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         stashCommand(intent)
@@ -34,6 +36,11 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
         AirSwipeChannels.messenger = messenger
+        shizukuExecutor = ShizukuSwipeExecutor(this)
+        shizukuExecutor.onStatusChanged = {
+            AirSwipeChannels.notify("shizukuStatus", shizukuExecutor.statusMap())
+        }
+        shizukuExecutor.start()
         flutterEngine.platformViewsController.registry.registerViewFactory(
             AirSwipeChannels.PREVIEW,
             PreviewFactory(),
@@ -74,8 +81,10 @@ class MainActivity : FlutterActivity() {
                     moveTaskToBack(true)
                     result.success(null)
                 }
-                "swipeUp" -> result.success(AirSwipeAccessibilityService.instance?.performSwipe(true) ?: false)
-                "swipeDown" -> result.success(AirSwipeAccessibilityService.instance?.performSwipe(false) ?: false)
+                "swipeUp" -> result.success(shizukuExecutor.swipeUp())
+                "swipeDown" -> result.success(shizukuExecutor.swipeDown())
+                "getShizukuStatus" -> result.success(shizukuExecutor.statusMap())
+                "requestShizukuPermission" -> result.success(shizukuExecutor.requestPermission())
                 "isServiceEnabled" -> result.success(isAccessibilityEnabled())
                 "openAccessibilitySettings" -> {
                     try {
@@ -95,6 +104,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         AirSwipeChannels.dartReady = false
         AirSwipeChannels.messenger = null
+        shizukuExecutor.shutdown()
         stopService(Intent(this, AirSwipeCameraService::class.java))
         super.onDestroy()
     }
