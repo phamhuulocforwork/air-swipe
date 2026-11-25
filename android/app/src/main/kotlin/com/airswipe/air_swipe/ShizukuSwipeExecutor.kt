@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.util.Log
 import android.view.WindowManager
 import rikka.shizuku.Shizuku
 
@@ -69,7 +70,8 @@ class ShizukuSwipeExecutor(private val context: Context) {
         bindRequested = false
         try {
             Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Log.w(TAG, "unbindUserService failed", error)
         }
     }
 
@@ -82,17 +84,27 @@ class ShizukuSwipeExecutor(private val context: Context) {
     }
 
     fun statusMap(): Map<String, Boolean> =
-        mapOf("granted" to isPermissionGranted(), "running" to isServiceRunning())
+        try {
+            mapOf("granted" to isPermissionGranted(), "running" to isServiceRunning())
+        } catch (error: Exception) {
+            Log.w(TAG, "statusMap failed", error)
+            mapOf("granted" to false, "running" to false)
+        }
 
-    fun requestPermission(requestCode: Int = REQUEST_CODE): Map<String, Boolean> {
-        if (!isServiceRunning() || Shizuku.isPreV11()) {
-            return statusMap()
+    fun requestPermission(requestCode: Int = REQUEST_CODE): Map<String, Boolean> =
+        try {
+            if (!isServiceRunning() || Shizuku.isPreV11()) {
+                statusMap()
+            } else {
+                if (!isPermissionGranted()) {
+                    Shizuku.requestPermission(requestCode)
+                }
+                statusMap()
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "requestPermission failed", error)
+            mapOf("granted" to false, "running" to false)
         }
-        if (!isPermissionGranted()) {
-            Shizuku.requestPermission(requestCode)
-        }
-        return statusMap()
-    }
 
     fun swipeUp(): Boolean = performSwipe(true)
 
@@ -105,6 +117,7 @@ class ShizukuSwipeExecutor(private val context: Context) {
         try {
             Shizuku.bindUserService(userServiceArgs, serviceConnection)
         } catch (error: Exception) {
+            Log.w(TAG, "bindUserService failed", error)
             bindRequested = false
         }
     }
@@ -136,6 +149,7 @@ class ShizukuSwipeExecutor(private val context: Context) {
             lastSwipeElapsed = now
             true
         } catch (error: Exception) {
+            Log.w(TAG, "exec failed", error)
             false
         }
     }
@@ -152,6 +166,7 @@ class ShizukuSwipeExecutor(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "ShizukuSwipeExecutor"
         const val REQUEST_CODE = 1001
     }
 }
