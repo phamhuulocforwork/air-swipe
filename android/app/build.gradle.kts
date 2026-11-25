@@ -65,4 +65,6 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("com.google.mediapipe:tasks-vision:0.10.15")
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
 }
