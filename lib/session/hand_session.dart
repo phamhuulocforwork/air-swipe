@@ -6,7 +6,7 @@ import 'package:air_swipe/domain/gesture/wrist_swipe_tracker.dart';
 /// Turns native GestureRecognizer results into swipes.
 ///
 /// The camera service runs the model. This session only keeps the wrist of an
-/// open palm and asks the accessibility service to swipe.
+/// open palm and asks the Shizuku shell executor to swipe.
 class HandSession {
   HandSession({required this.platform, WristSwipeTracker? tracker})
     : tracker = tracker ?? WristSwipeTracker();
@@ -100,7 +100,7 @@ class HandSession {
             ? await platform.swipeUp()
             : await platform.swipeDown();
         if (!swiped) {
-          error = 'Chưa bật hỗ trợ tiếp cận, hoặc vuốt bị chặn.';
+          error = 'Shizuku chưa sẵn sàng, hoặc vuốt bị chặn.';
         } else {
           error = null;
         }

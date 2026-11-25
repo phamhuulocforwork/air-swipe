@@ -43,6 +43,21 @@ class HandEvent {
   }
 }
 
+class ShizukuStatus {
+  const ShizukuStatus({required this.granted, required this.running});
+
+  final bool granted;
+  final bool running;
+
+  factory ShizukuStatus.fromArguments(Object? arguments) {
+    final map = Map<Object?, Object?>.from(arguments as Map);
+    return ShizukuStatus(
+      granted: map['granted'] == true,
+      running: map['running'] == true,
+    );
+  }
+}
+
 List<double> _doubles(Object? value) {
   if (value is! List) {
     return const [];
@@ -64,6 +79,7 @@ class SwipePlatform {
     required Future<void> Function() onStop,
     required void Function(String message) onCameraError,
     required Future<void> Function(Object? arguments) onHand,
+    required void Function(ShizukuStatus status) onShizukuStatus,
   }) {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -85,6 +101,8 @@ class SwipePlatform {
           onCameraError(message);
         case 'hand':
           await onHand(call.arguments);
+        case 'shizukuStatus':
+          onShizukuStatus(ShizukuStatus.fromArguments(call.arguments));
       }
     });
   }
@@ -121,12 +139,16 @@ class SwipePlatform {
     return await _channel.invokeMethod<bool>('swipeDown') ?? false;
   }
 
-  Future<bool> isServiceEnabled() async {
-    return await _channel.invokeMethod<bool>('isServiceEnabled') ?? false;
+  Future<ShizukuStatus> getShizukuStatus() async {
+    return ShizukuStatus.fromArguments(
+      await _channel.invokeMethod('getShizukuStatus'),
+    );
   }
 
-  Future<void> openAccessibilitySettings() {
-    return _channel.invokeMethod<void>('openAccessibilitySettings');
+  Future<ShizukuStatus> requestShizukuPermission() async {
+    return ShizukuStatus.fromArguments(
+      await _channel.invokeMethod('requestShizukuPermission'),
+    );
   }
 
   Future<bool> canRequestAddTile() async {

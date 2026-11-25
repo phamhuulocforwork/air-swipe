@@ -19,7 +19,8 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   final SettingsStore _store = SettingsStore();
   late final HandSession _session;
 
-  var _accessibilityOn = false;
+  var _shizukuGranted = false;
+  var _shizukuRunning = false;
   var _canAddTile = false;
   var _sensitivity = 0.18;
   var _cooldownMs = 1500;
@@ -67,6 +68,14 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
         }
         await _session.onHand(arguments);
       },
+      onShizukuStatus: (status) {
+        if (mounted) {
+          setState(() {
+            _shizukuGranted = status.granted;
+            _shizukuRunning = status.running;
+          });
+        }
+      },
     );
     _boot();
   }
@@ -85,7 +94,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
       _canAddTile = canAddTile;
     });
     _applyTrackerSettings();
-    await _refreshAccessibility();
+    await _refreshShizukuStatus();
     if (command == 'start') {
       await _setListening(true, collapse: true);
     } else if (command == 'stop') {
@@ -99,10 +108,13 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
     _session.tracker.upOnly = _upOnly;
   }
 
-  Future<void> _refreshAccessibility() async {
-    final enabled = await _platform.isServiceEnabled();
+  Future<void> _refreshShizukuStatus() async {
+    final status = await _platform.getShizukuStatus();
     if (mounted) {
-      setState(() => _accessibilityOn = enabled);
+      setState(() {
+        _shizukuGranted = status.granted;
+        _shizukuRunning = status.running;
+      });
     }
   }
 
@@ -149,7 +161,7 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _platform.setPreviewActive(true);
-      _refreshAccessibility();
+      _refreshShizukuStatus();
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _platform.setPreviewActive(false);
@@ -345,10 +357,12 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
       child: Column(
         children: [
           _statusRow(
-            'Quyền trợ năng',
+            'Shizuku',
             _dotStatus(
-              _accessibilityOn ? 'Đã cấp' : 'Chưa cấp',
-              active: _accessibilityOn,
+              _shizukuRunning
+                  ? (_shizukuGranted ? 'Đã cấp' : 'Chưa cấp')
+                  : 'Chưa chạy',
+              active: _shizukuGranted,
             ),
           ),
           const SizedBox(height: 14),
@@ -583,16 +597,32 @@ class _TestScreenState extends State<TestScreen> with WidgetsBindingObserver {
   }
 
   Widget _actions(BuildContext context) {
-    final accessibility = _outlineButton(
-      'Cấp quyền trợ năng',
-      () => _platform.openAccessibilitySettings(),
+    final shizukuButton = _outlineButton(
+      'Yêu cầu quyền Shizuku',
+      () async {
+        final status = await _platform.requestShizukuPermission();
+        if (!context.mounted) return;
+        if (!status.running) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Shizuku chưa chạy — mở app Shizuku, bấm Start (Wireless debugging) rồi quay lại.',
+              ),
+            ),
+          );
+        }
+        setState(() {
+          _shizukuGranted = status.granted;
+          _shizukuRunning = status.running;
+        });
+      },
     );
     if (!_canAddTile) {
-      return accessibility;
+      return shizukuButton;
     }
     return Row(
       children: [
-        Expanded(child: accessibility),
+        Expanded(child: shizukuButton),
         const SizedBox(width: 10),
         Expanded(
           child: _outlineButton('Thêm lối tắt nhanh', () async {
